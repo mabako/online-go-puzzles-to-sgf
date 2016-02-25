@@ -2,7 +2,7 @@
 require 'httparty'
 
 class Puzzle
-  attr_accessor :id, :name, :description, :initial_state_white, :initial_state_black, :game_size, :tree, :initial_player
+  attr_accessor :id, :name, :description, :initial_state_white, :initial_state_black, :game_size, :tree, :initial_player, :source
 
   def initialize
     initial_state_white = Array.new
@@ -22,7 +22,8 @@ class Puzzle
     # extract basic information about the puzzle
     puzzle.id = object['id'].to_i
     puzzle.name = "#{object['collection']['name']} - #{object['name']}"
-    puzzle.description = p['puzzle_description'] + "\n\nFrom https://online-go.com/puzzles/#{puzzle.id}"
+    puzzle.description = p['puzzle_description']
+    puzzle.source = "https://online-go.com/puzzles/#{puzzle.id}"
 
     # extract the game size; albeit this can presumably only be 9x9, 13x13 or 19x19, making the check for width != height redundant
     puzzle.game_size = p['width'].to_i
@@ -61,6 +62,9 @@ class Puzzle
       # application name (not like we have any)
       file.write "AP[online-go.com:1]\n"
 
+      # source where we obtained it from
+      file.write "SO[#{source.escape_for_sgf}]\n"
+
       # name of the puzzle
       file.write "GN[#{name.escape_for_sgf}]\n"
 
@@ -88,12 +92,8 @@ class Puzzle
   def save_moves file, tree, player
     # If we have -1, -1 as coordinates, which we just skip
     if tree['x'] != -1 and tree['y'] != -1 then
-      # convert the x/y coordinates of 0-18, 0-18 to SGF's a-s, a-s
-      x = ('a'.ord + tree['x']).chr
-      y = ('a'.ord + tree['y']).chr
-
       # color and coordinates
-      file.write ";#{player}[#{x}#{y}]"
+      file.write ";#{player}[#{sgf_board_position(tree)}]"
 
       # the other player is to play next
       player = invert_color(player)
@@ -109,6 +109,20 @@ class Puzzle
       end
 
       file.write "C[#{comment.escape_for_sgf}]" unless comment.nil? or comment.empty?
+    end
+
+    # do we have any marks?
+    unless tree['marks'].nil? or tree['marks'].size == 0
+      tree['marks'].each { |mark|
+        position = sgf_board_position mark
+        type = mark['marks']
+
+        file.write "CR[#{position}]" unless type['circle'].nil?
+        file.write "TR[#{position}]" unless type['triangle'].nil?
+        file.write "MA[#{position}]" unless type['cross'].nil?
+        file.write "SQ[#{position}]" unless  type['square'].nil?
+        file.write "LB[#{position}:#{type['letter']}]" unless type['letter'].nil?
+      }
     end
 
     # do we have follow-ups?
@@ -130,6 +144,13 @@ class Puzzle
 
   def invert_color color
      color == 'W' ? 'B' : 'W'
+  end
+
+  # convert the x/y coordinates of 0-18, 0-18 to SGF's a-s, a-s
+  def sgf_board_position tree
+    x = ('a'.ord + tree['x']).chr
+    y = ('a'.ord + tree['y']).chr
+    "#{x}#{y}"
   end
 
   # convert the array of initial moves to SGF
