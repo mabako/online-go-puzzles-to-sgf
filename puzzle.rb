@@ -23,7 +23,7 @@ class Puzzle
     puzzle.id = object['id'].to_i
     puzzle.name = "#{object['collection']['name']} - #{object['name']}"
     puzzle.description = p['puzzle_description']
-    puzzle.source = "https://online-go.com/puzzles/#{puzzle.id}"
+    puzzle.source = "https://online-go.com/puzzle/#{puzzle.id}"
 
     # extract the game size; albeit this can presumably only be 9x9, 13x13 or 19x19, making the check for width != height redundant
     puzzle.game_size = p['width'].to_i
