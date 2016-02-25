@@ -2,6 +2,9 @@
 require 'httparty'
 
 class Puzzle
+  include HTTParty
+  base_uri 'https://online-go.com/api/v1/puzzles/'
+
   attr_accessor :id, :name, :description, :initial_state_white, :initial_state_black, :game_size, :tree, :initial_player, :source
 
   def initialize
@@ -12,7 +15,7 @@ class Puzzle
   # Convert the JSON object returned from OGS into a puzzle we can actually use.
   def self.from_json object
     # did we actually get an object?
-    raise ArgumentError if object.nil?
+    raise ArgumentError, 'no valid object as JSON result given' if object.nil?
 
     # most relevant information is stored in the puzzle node
     p = object['puzzle']
@@ -42,8 +45,12 @@ class Puzzle
   end
 
   def self.from_url id
-    response = HTTParty.get("https://online-go.com/api/v1/puzzles/#{id}").parsed_response
-    from_json(response)
+    response = get(id.to_s).body
+    from_json(JSON.parse(response, max_nesting: 2000))
+  end
+
+  def self.collection_summary id
+    get("#{id}/collection_summary")
   end
 
   def save(filename = 'test.sgf')
